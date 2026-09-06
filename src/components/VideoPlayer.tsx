@@ -268,7 +268,7 @@ const VideoPlayerComponent: React.FC<Props> = ({
     };
   }, [playerB, switchState]);
 
-  // Handle READY_TO_SEEK -> SEEKING for Player B
+  // Handle READY_TO_SEEK for Player B
   useEffect(() => {
     if (switchState === 'READY_TO_SEEK' && switchContextRef.current?.targetSlot === 'B') {
       const ctx = switchContextRef.current;
@@ -279,6 +279,10 @@ const VideoPlayerComponent: React.FC<Props> = ({
       } catch (e) {
         console.warn('[QualitySwitch] Error seeking Player B:', e);
       }
+      ctx.seekApplied = true;
+      console.log(`[QualitySwitch] 4. seek applied, mounting VideoView B`);
+      setMountVideoViewB(true);
+      setSwitchState('WAITING_FOR_FIRST_FRAME_AFTER_SEEK');
     }
   }, [switchState, playerB]);
 
@@ -331,7 +335,7 @@ const VideoPlayerComponent: React.FC<Props> = ({
     };
   }, [playerA, switchState]);
 
-  // Handle READY_TO_SEEK -> SEEKING for Player A
+  // Handle READY_TO_SEEK for Player A
   useEffect(() => {
     if (switchState === 'READY_TO_SEEK' && switchContextRef.current?.targetSlot === 'A') {
       const ctx = switchContextRef.current;
@@ -342,6 +346,10 @@ const VideoPlayerComponent: React.FC<Props> = ({
       } catch (e) {
         console.warn('[QualitySwitch] Error seeking Player A:', e);
       }
+      ctx.seekApplied = true;
+      console.log(`[QualitySwitch] 4. seek applied, mounting VideoView A`);
+      setMountVideoViewA(true);
+      setSwitchState('WAITING_FOR_FIRST_FRAME_AFTER_SEEK');
     }
   }, [switchState, playerA]);
 
@@ -350,7 +358,7 @@ const VideoPlayerComponent: React.FC<Props> = ({
     if (id) markVideoAsCached(id);
 
     const ctx = switchContextRef.current;
-    if (switchState === 'WAITING_FOR_FIRST_FRAME_AFTER_SEEK' && ctx?.targetSlot === 'A' && ctx.seekApplied) {
+    if ((switchState === 'WAITING_FOR_FIRST_FRAME_AFTER_SEEK' || switchState === 'SEEKING') && ctx?.targetSlot === 'A') {
       // STEP 5: First frame rendered AFTER seek confirmed
       ctx.firstFrameAfterSeekRendered = true;
       console.log(`[QualitySwitch] 5. first frame rendered after seek at position: ${playerA?.currentTime.toFixed(3)}s`);
@@ -369,7 +377,7 @@ const VideoPlayerComponent: React.FC<Props> = ({
     if (id) markVideoAsCached(id);
 
     const ctx = switchContextRef.current;
-    if (switchState === 'WAITING_FOR_FIRST_FRAME_AFTER_SEEK' && ctx?.targetSlot === 'B' && ctx.seekApplied) {
+    if ((switchState === 'WAITING_FOR_FIRST_FRAME_AFTER_SEEK' || switchState === 'SEEKING') && ctx?.targetSlot === 'B') {
       // STEP 5: First frame rendered AFTER seek confirmed
       ctx.firstFrameAfterSeekRendered = true;
       console.log(`[QualitySwitch] 5. first frame rendered after seek at position: ${playerB?.currentTime.toFixed(3)}s`);

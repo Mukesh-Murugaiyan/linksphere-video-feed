@@ -30,6 +30,8 @@
     "android": "expo run:android",
     "studio": "open -a \"Android Studio\" android",
     "ios": "expo run:ios",
+    "xcode": "open ios/linkspherevideofeed.xcworkspace",
+    "pod:install": "pod install --project-directory=ios",
     "web": "expo start --web",
     "lint": "tsc --noEmit"
   },
