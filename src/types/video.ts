@@ -1,5 +1,13 @@
 export type UpscaleQuality = 'sd' | 'hd';
 
+export type PlaybackLifecycleState =
+  | 'UNLOADED'
+  | 'LOADING'
+  | 'READY'
+  | 'PLAYING'
+  | 'PAUSED'
+  | 'ERROR';
+
 export interface VideoItem {
   id: string;
   type: 'video';
@@ -14,21 +22,28 @@ export interface VideoItem {
   tags: string[];
   sdUrl: string;
   hdUrl: string;
-  audioTrack: {
-    title: string;
-    artist: string;
-  };
+  posterUrl: string;
+  audioTrack:
+    | {
+        title: string;
+        artist: string;
+      }
+    | string;
   initialLikes: number;
-  commentsCount: number;
-  sharesCount: number;
-  bookmarksCount: number;
+  commentsCount?: number;
+  initialComments?: number;
+  sharesCount?: number;
+  initialShares?: number;
+  bookmarksCount?: number;
+  initialBookmarks?: number;
 }
 
 export interface AdItem {
   id: string;
   type: 'ad';
   sponsorName: string;
-  sponsorLogo: string;
+  sponsorLogo?: string;
+  logo?: string;
   title: string;
   description: string;
   ctaText: string;

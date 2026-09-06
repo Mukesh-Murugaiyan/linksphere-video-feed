@@ -10,7 +10,7 @@ interface Props {
   item: AdItem;
 }
 
-export const AdCard: React.FC<Props> = ({ item }) => {
+const AdCardComponent: React.FC<Props> = ({ item }) => {
   return (
     <View style={styles.adContainer}>
       {/* Fixed Dimension Skeleton & Background Image (Zero CLS) */}
@@ -30,7 +30,7 @@ export const AdCard: React.FC<Props> = ({ item }) => {
         <View style={[styles.glassCard, GLASS_STYLE]}>
           {/* Sponsor Header */}
           <View style={styles.sponsorHeader}>
-            <Image source={{ uri: item.sponsorLogo }} style={styles.sponsorLogo} />
+            <Image source={{ uri: item.sponsorLogo || item.logo || item.imageUrl }} style={styles.sponsorLogo} />
             <View style={styles.sponsorMeta}>
               <Text style={styles.sponsorName}>{item.sponsorName}</Text>
               <Text style={styles.promotedLabel}>Promoted Partner</Text>
@@ -51,6 +51,8 @@ export const AdCard: React.FC<Props> = ({ item }) => {
     </View>
   );
 };
+
+export const AdCard = React.memo(AdCardComponent);
 
 const styles = StyleSheet.create({
   adContainer: {

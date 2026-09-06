@@ -1,11 +1,16 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Storage } from '../services/storage';
 
 export function useLikesStore(videoId: string, initialLikesCount: number, initialBookmarksCount: number = 0) {
-  const likedKey = `liked_${videoId}`;
-  const countKey = `like_count_${videoId}`;
-  const bookmarkKey = `bookmarked_${videoId}`;
-  const bookmarkCountKey = `bookmark_count_${videoId}`;
+  const { likedKey, countKey, bookmarkKey, bookmarkCountKey } = useMemo(
+    () => ({
+      likedKey: `liked_${videoId}`,
+      countKey: `like_count_${videoId}`,
+      bookmarkKey: `bookmarked_${videoId}`,
+      bookmarkCountKey: `bookmark_count_${videoId}`,
+    }),
+    [videoId]
+  );
 
   const [isLiked, setIsLiked] = useState<boolean>(() => Storage.getBoolean(likedKey, false));
   const [likeCount, setLikeCount] = useState<number>(() => Storage.getNumber(countKey, initialLikesCount));
@@ -21,7 +26,7 @@ export function useLikesStore(videoId: string, initialLikesCount: number, initia
     if (Storage.getItem(bookmarkCountKey) === null) {
       Storage.setNumber(bookmarkCountKey, initialBookmarksCount);
     }
-  }, [videoId, initialLikesCount, initialBookmarksCount]);
+  }, [videoId, countKey, bookmarkCountKey, initialLikesCount, initialBookmarksCount]);
 
   const toggleLike = useCallback(() => {
     setIsLiked((prev) => {

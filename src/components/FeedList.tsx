@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { generateFeedData } from '../constants/mockData';
@@ -6,29 +6,43 @@ import { FeedItem } from '../types/video';
 import { VideoCard } from './VideoCard';
 import { AdCard } from './AdCard';
 import { useVideoFeed } from '../hooks/useVideoFeed';
+import { useVideoPreload } from '../hooks/useVideoPreload';
 import { COLORS } from '../constants/theme';
 
 const { height: WINDOW_HEIGHT } = Dimensions.get('window');
 
 export const FeedList: React.FC = () => {
-  const feedData = useMemo(() => generateFeedData(20), []);
+  const feedData = useMemo(() => generateFeedData(30), []);
   const { activeIndex, isMuted, toggleMute, viewabilityConfig, onViewableItemsChanged } =
-    useVideoFeed();
+    useVideoFeed(feedData);
 
-  const renderItem = ({ item, index }: { item: FeedItem; index: number }) => {
-    if (item.type === 'ad') {
-      return <AdCard item={item} />;
-    }
+  const { isItemPreloadTarget } = useVideoPreload(feedData, activeIndex);
 
-    return (
-      <VideoCard
-        item={item}
-        isFocused={index === activeIndex}
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-      />
-    );
-  };
+  const renderItem = useCallback(
+    ({ item, index }: { item: FeedItem; index: number }) => {
+      if (item.type === 'ad') {
+        return <AdCard item={item} />;
+      }
+
+      const isFocused = index === activeIndex;
+      const isPreloadTarget = isItemPreloadTarget(index);
+
+      return (
+        <VideoCard
+          item={item}
+          isFocused={isFocused}
+          isPreloadTarget={isPreloadTarget}
+          isMuted={isMuted}
+          onToggleMute={toggleMute}
+        />
+      );
+    },
+    [activeIndex, isItemPreloadTarget, isMuted, toggleMute]
+  );
+
+  const overrideItemLayout = useCallback((layout: { span?: number }) => {
+    layout.span = 1;
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -42,6 +56,9 @@ export const FeedList: React.FC = () => {
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        overrideItemLayout={overrideItemLayout}
+        drawDistance={WINDOW_HEIGHT}
+        extraData={activeIndex}
       />
     </View>
   );
