@@ -15,9 +15,9 @@ export function useVideoQuality(item: VideoItem) {
     setQuality((prev) => {
       const nextQuality: UpscaleQuality = prev === 'sd' ? 'hd' : 'sd';
       if (nextQuality === 'hd') {
-        setToastMessage('⚡ AI Upscaled 1080p | 60FPS');
+        setToastMessage('Upscaled 1080p');
       } else {
-        setToastMessage('SD 480p Playback Mode');
+        setToastMessage('SD 480p');
       }
       return nextQuality;
     });

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -17,16 +17,30 @@ const { height: WINDOW_HEIGHT, width: WINDOW_WIDTH } = Dimensions.get('window');
 interface Props {
   item: VideoItem;
   isFocused: boolean;
+  isPreloadTarget?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
 }
 
-export const VideoCard: React.FC<Props> = ({ item, isFocused, isMuted, onToggleMute }) => {
+const VideoCardComponent: React.FC<Props> = ({
+  item,
+  isFocused,
+  isPreloadTarget = false,
+  isMuted,
+  onToggleMute,
+}) => {
   const heartRef = useRef<DoubleTapHeartRef>(null);
   const currentPlaybackPositionRef = useRef<number>(0);
 
   // Manual Play/Pause State
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+
+  // Reset manual pause state whenever video leaves focus so returning to it resumes playback automatically
+  useEffect(() => {
+    if (!isFocused) {
+      setIsManuallyPaused(false);
+    }
+  }, [isFocused]);
 
   // Optimistic Like Store
   const {
@@ -37,7 +51,7 @@ export const VideoCard: React.FC<Props> = ({ item, isFocused, isMuted, onToggleM
     isBookmarked,
     bookmarkCount,
     toggleBookmark,
-  } = useLikesStore(item.id, item.initialLikes, item.bookmarksCount);
+  } = useLikesStore(item.id, item.initialLikes, item.bookmarksCount ?? item.initialBookmarks ?? 0);
 
   // Video Quality & Upscaling Hook
   const {
@@ -61,27 +75,31 @@ export const VideoCard: React.FC<Props> = ({ item, isFocused, isMuted, onToggleM
     handleDoubleTapLike();
   }, [handleDoubleTapLike]);
 
-  // Double Tap Gesture
-  const doubleTapGesture = Gesture.Tap()
-    .numberOfTaps(2)
-    .maxDelay(300)
-    .onEnd(() => {
-      scheduleOnRN(onDoubleTap);
-    });
+  // Memoized Gesture Handler Configuration to prevent GC churn & re-registration on every render
+  const composedGesture = useMemo(() => {
+    const doubleTapGesture = Gesture.Tap()
+      .numberOfTaps(2)
+      .maxDelay(300)
+      .onEnd(() => {
+        scheduleOnRN(onDoubleTap);
+      });
 
-  // Single Tap Gesture
-  const singleTapGesture = Gesture.Tap()
-    .numberOfTaps(1)
-    .onEnd(() => {
-      scheduleOnRN(onSingleTap);
-    });
+    const singleTapGesture = Gesture.Tap()
+      .numberOfTaps(1)
+      .onEnd(() => {
+        scheduleOnRN(onSingleTap);
+      });
 
-  // Exclusive Composition: Double-tap takes precedence over single-tap!
-  const composedGesture = Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+    return Gesture.Exclusive(doubleTapGesture, singleTapGesture);
+  }, [onDoubleTap, onSingleTap]);
 
-  const handleToggleQuality = () => {
+  const handleToggleQuality = useCallback(() => {
     toggleQuality(currentPlaybackPositionRef.current);
-  };
+  }, [toggleQuality]);
+
+  const handlePlaybackProgress = useCallback((pos: number) => {
+    currentPlaybackPositionRef.current = pos;
+  }, []);
 
   return (
     <View style={styles.cardContainer}>
@@ -89,20 +107,18 @@ export const VideoCard: React.FC<Props> = ({ item, isFocused, isMuted, onToggleM
       <GestureDetector gesture={composedGesture}>
         <View style={StyleSheet.absoluteFill}>
           <VideoPlayer
+            id={item.id}
             uri={activeUrl}
+            posterUrl={item.posterUrl}
             isFocused={isFocused}
+            isPreloadTarget={isPreloadTarget}
             isMuted={isMuted}
             isManuallyPaused={isManuallyPaused}
             quality={quality}
             pendingSeekPosition={pendingSeekPosition}
             onClearPendingSeek={clearPendingSeek}
-            onPlaybackProgress={(pos) => {
-              currentPlaybackPositionRef.current = pos;
-            }}
+            onPlaybackProgress={handlePlaybackProgress}
           />
-
-          {/* Floating UI-Thread Reanimated Double-Tap Heart Overlay directly inside video container */}
-          <DoubleTapHeart ref={heartRef} />
         </View>
       </GestureDetector>
 
@@ -126,9 +142,21 @@ export const VideoCard: React.FC<Props> = ({ item, isFocused, isMuted, onToggleM
         isMuted={isMuted}
         onToggleMute={onToggleMute}
       />
+
+      {/* Floating UI-Thread Reanimated Double-Tap Heart Overlay rendered on top of all card components */}
+      <DoubleTapHeart ref={heartRef} />
     </View>
   );
 };
+
+export const VideoCard = React.memo(
+  VideoCardComponent,
+  (prevProps, nextProps) =>
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.isPreloadTarget === nextProps.isPreloadTarget &&
+    prevProps.isMuted === nextProps.isMuted &&
+    prevProps.item.id === nextProps.item.id
+);
 
 const styles = StyleSheet.create({
   cardContainer: {

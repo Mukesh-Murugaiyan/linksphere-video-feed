@@ -15,19 +15,19 @@ interface Props {
   onDismiss: () => void;
 }
 
-export const ToastHUD: React.FC<Props> = ({ message, onDismiss }) => {
-  const translateY = useSharedValue(-80);
+const ToastHUDComponent: React.FC<Props> = ({ message, onDismiss }) => {
+  const translateX = useSharedValue(-40);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (message) {
-      // Animate in
-      translateY.value = withSpring(0, { damping: 15, stiffness: 200 });
-      opacity.value = withTiming(1, { duration: 200 });
+      // Animate in smoothly from left
+      translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
+      opacity.value = withTiming(1, { duration: 220 });
 
       // Automatically fade out after 2000ms
       const timer = setTimeout(() => {
-        translateY.value = withTiming(-60, { duration: 300 });
+        translateX.value = withTiming(-30, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 }, (finished) => {
           if (finished) {
             scheduleOnRN(onDismiss);
@@ -37,13 +37,13 @@ export const ToastHUD: React.FC<Props> = ({ message, onDismiss }) => {
 
       return () => clearTimeout(timer);
     } else {
-      translateY.value = -80;
+      translateX.value = -40;
       opacity.value = 0;
     }
-  }, [message, onDismiss, opacity, translateY]);
+  }, [message, onDismiss, opacity, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateX: translateX.value }],
     opacity: opacity.value,
   }));
 
@@ -52,32 +52,32 @@ export const ToastHUD: React.FC<Props> = ({ message, onDismiss }) => {
   return (
     <View style={styles.container} pointerEvents="none">
       <Animated.View style={[styles.hudToast, GLASS_STYLE, animatedStyle]}>
-        <Sparkles size={18} color={COLORS.accentCyan} />
+        <Sparkles size={16} color={COLORS.accentCyan} />
         <Text style={styles.toastText}>{message}</Text>
       </Animated.View>
     </View>
   );
 };
 
+export const ToastHUD = React.memo(ToastHUDComponent);
+
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 54,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    left: 16,
     zIndex: 100,
   },
   hudToast: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: 'rgba(10, 10, 14, 0.85)',
     borderColor: 'rgba(6, 182, 212, 0.4)',
     borderWidth: 1,
-    gap: 8,
+    gap: 6,
     shadowColor: COLORS.accentCyan,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: COLORS.textPrimary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

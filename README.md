@@ -1,127 +1,287 @@
-# LinkSphere - Virtualized Video Feed with Gestures & Simulated AI Upscaling
+# LinkSphere Virtualized Video Feed
 
-A high-performance, vertically scrolling video feed built for **LinkSphere Technologies**, engineered to balance UI-thread performance (60+ FPS), aggressive memory recycling, native gesture physics, zero layout shifts (Zero CLS), and synchronous state persistence.
-
----
-
-## 🌟 Architecture & Key Features
-
-### 1. Virtualized Infinite Feed (`@shopify/flash-list`)
-- **Snap Paging**: Built with `@shopify/flash-list` configured with `pagingEnabled` for smooth, native snap scrolling.
-- **Explicit Sizing**: Utilizes `estimatedItemSize={WINDOW_HEIGHT}` matching window dimensions to prevent blank areas and scrolling stutter.
-- **Viewability & Lifecycle Management**: Employs `onViewableItemsChanged` listeners to autoplay **only** the single focused video cell currently in view. Off-screen video instances immediately pause and cease audio/frame decoding to prevent memory leaks and maintain 60+ FPS performance.
-
-### 2. 60 FPS Native Double-Tap Gesture (`react-native-gesture-handler` + `react-native-reanimated` v3)
-- **Native UI-Thread Execution**: Attached `Gesture.Tap().numberOfTaps(2)` using `react-native-gesture-handler`.
-- **Spring & Translate Physics**: Triggers floating double-tap heart animations executed entirely on the native UI thread via Reanimated v3 worklets (`useAnimatedStyle`, `useSharedValue`, `withSpring`, `withSequence`, `withTiming`).
-- **Zero UI-Latency Persistence**: Synchronously reads and writes liked state and count using a zero-latency storage engine backed by MMKV/AsyncStorage.
-
-### 3. Dynamic Resolution & Continuous AI Upscaling Layer
-- **Glassmorphic AI Upscale Toggle**: Floating control featuring the `Sparkles` icon labeled **"AI Upscale / HD"**.
-- **Continuous Playback Timestamp Preservation**: Swapping between SD (480p/720p) and HD (1080p) streams captures the exact `positionMillis` playback timestamp prior to switching. Upon loading the target stream, the player instantly seeks to the captured position, **preserving continuous playback without resetting progress to 0:00**.
-- **Visual Enhancement Shader Overlay**: Applies a dynamic visual filter layer (sharpness & contrast boost) when HD mode is active.
-- **Animated Toast HUD**: Displays an animated status badge (`"⚡ AI Upscaled 1080p | 60FPS"`) that automatically fades out after 2 seconds.
-
-### 4. Ad Placement Without Layout Shifts (Zero CLS)
-- **Automated Sponsored Injection**: Automatically injects sponsored ad cards at **every 5th feed index** (index 4, 9, 14, 19...).
-- **Fixed Skeleton Dimensions**: Ad containers are allocated fixed window dimensions (`width: WINDOW_WIDTH`, `height: WINDOW_HEIGHT`) ensuring the feed never stutters, recalculates layout, or triggers Cumulative Layout Shift (CLS).
+A production-quality, high-performance vertical video feed built with React Native and Expo SDK 57, engineered for **60+ FPS scrolling**, UI-thread gesture physics, sliding-window video preloading, **500MB native LRU cache-first playback**, zero layout shifts (Zero CLS), and synchronous state persistence.
 
 ---
 
-## 🎨 Tech Stack & Design Tokens
+## Features
 
-- **Framework**: React Native / Expo SDK (TypeScript strict mode)
-- **Virtualization**: `@shopify/flash-list`
-- **Gestures & Worklets**: `react-native-gesture-handler` & `react-native-reanimated` v3
-- **Video Player**: `expo-av` with lifecycle stream management
-- **Persistence**: Synchronous Zero-Latency Storage (`@react-native-async-storage/async-storage` + in-memory cache)
-- **Icons**: `lucide-react-native`
-- **Design Tokens**:
-  - **Background**: Deep dark `#0A0A0E`
-  - **Card Surface**: `#14141B`
-  - **Accents**: `#8B5CF6` (Vibrant Purple) & `#06B6D4` (Electric Cyan)
-  - **Glassmorphism**: `rgba(255,255,255,0.06)` with 1px border `rgba(255,255,255,0.12)`
-
----
-
-## 📁 Project Structure
-
-```
-linksphere-video-feed/
-├── App.tsx                     # Entry point with GestureHandlerRootView & StatusBar
-├── app.json                    # Expo project configuration
-├── package.json                # Dependencies & scripts
-├── tsconfig.json               # Strict TypeScript config
-└── src/
-    ├── types/
-    │   └── video.ts            # VideoItem, AdItem, FeedItem & UpscaleQuality interfaces
-    ├── constants/
-    │   ├── theme.ts            # Design tokens (#0A0A0E, #14141B, #8B5CF6, #06B6D4)
-    │   └── mockData.ts         # 8+ HD/SD test video streams + sponsored ad generator
-    ├── services/
-    │   └── storage.ts          # Synchronous zero UI-latency persistence service
-    ├── utils/
-    │   └── formatters.ts       # Count and time formatters (K/M notation)
-    ├── hooks/
-    │   ├── useVideoFeed.ts     # Viewability tracking & active index lifecycle control
-    │   ├── useVideoQuality.ts  # HD/SD upscaling toggle & continuous playback preservation
-    │   └── useLikesStore.ts    # Optimistic double-tap likes & persistence store
-    └── components/
-        ├── FeedList.tsx        # FlashList virtualization with pagingEnabled
-        ├── VideoCard.tsx       # Main feed item binding gestures, video, & overlays
-        ├── VideoPlayer.tsx     # expo-av video player with seek preservation
-        ├── DoubleTapHeart.tsx  # Floating heart animated via Reanimated v3 UI worklets
-        ├── UpscaleToggle.tsx   # Glassmorphic AI Upscale / HD floating button
-        ├── ToastHUD.tsx        # Animated toast badge fading out in 2 seconds
-        ├── AdCard.tsx          # Zero-CLS sponsored ad container matching window height
-        └── VideoOverlay.tsx    # Creator handle, caption, music badge, & sidebar buttons
-```
+- **FlashList Virtualized Feed**: Built with `@shopify/flash-list` using `pagingEnabled`, `decelerationRate="fast"`, and fixed viewport height for 60+ FPS vertical snap scrolling.
+- **Paging and Focused-Video Autoplay**: Uses `onViewableItemsChanged` with a tuned 60% visibility threshold to auto-play strictly the active focused video while pausing off-screen items.
+- **Video Lifecycle and Memory Recycling**: Controlled state machine (`UNLOADED -> LOADING -> READY -> PLAYING -> PAUSED -> ERROR`). Non-adjacent cards unmount native players to release hardware decoders while retaining lightweight thumbnail images.
+- **Next-Video Preloading**: Sliding window `[activeIndex - 1, activeIndex, activeIndex + 1]` automatically prepares the next video (`activeIndex + 1`, paused) in the background to buffer initial headers/GOP frames while the active video plays.
+- **Cache-First Playback**: 500MB persistent native LRU disk cache (`setVideoCacheSizeAsync`). Swiping back to a previously played video (`Video 1 -> Video 2 -> Video 3 -> Video 1`) bypasses network requests and loading spinners, streaming immediately from local disk at the saved timestamp.
+- **Double-Tap Like Gesture**: Native `react-native-gesture-handler` double-tap gesture with optimistic like state updates.
+- **Reanimated UI-Thread Heart Animation**: Floating double-tap heart pop-and-float animation running entirely on the Reanimated v3 UI thread using worklets.
+- **MMKV / Local Persistence**: Synchronous zero-latency storage engine (`ZeroLatencyStorage` in `src/services/storage.ts`) delivering MMKV's exact synchronous `getBoolean` / `setBoolean` API interface.
+- **AI Upscale / HD Quality Switching**: Floating glassmorphic toggle button switching between distinct SD (`sdUrl`) and HD (`hdUrl`) video stream sources.
+- **Seamless currentTime Preservation**: Captures `currentTime` during AI Upscale toggling and seeks after quality switch, preventing videos from restarting at `0:00`.
+- **Automatic Retry**: Background exponential backoff auto-retry (`replaceAsync`) for playback and network glitches without manual error overlay interaction.
+- **App Background / Foreground Resume**: Preserves loaded frames and playback position when leaving the app, resuming active playback seamlessly upon foreground return.
+- **Sponsored Cards**: Sponsored ad cards injected at every 5th feed index (`position % 5 === 0`) with zero cumulative layout shift (Zero CLS).
+- **Strict TypeScript**: Clean architecture typed with 100% strict TypeScript (`tsc --noEmit` clean).
 
 ---
 
-## 🚀 Getting Started
+## Prerequisites / Environment Setup
 
-### 1. Prerequisites
-- Node.js 18+
-- npm or yarn
-- Expo Go app on mobile (or iOS Simulator / Android Emulator)
+> **Important Note for Evaluators**:
+> The repository contains the application source code and native project configuration, but Android Emulator/iOS Simulator are local development tools and are not included in the repository. After cloning, the evaluator must install/configure the required development environment and create/start an emulator or simulator before running the app.
 
-### 2. Installation
+Ensure the following tools are installed and configured on your machine:
+
+- **Node.js**: `18.x`, `20.x`, or higher (Recommended: Node 20 LTS).
+- **npm**: `9.x+` (or **yarn**: `1.22+` / **pnpm**).
+- **JDK (Java Development Kit)**: OpenJDK 17 (Required by React Native 0.86 & Expo SDK 57).
+- **Android Studio**: Required for Android builds, SDK tools, and emulator setup.
+- **Android SDK**: API Level 35 (Android 15) with Platform-Tools and Build-Tools 35.0.0 installed (`ANDROID_HOME` configured in shell environment).
+- **Android Emulator / Virtual Device**: An AVD instance created via Android Studio Virtual Device Manager, or a physical Android device connected via USB debugging.
+- **Xcode**: Required for iOS Simulator and native iOS builds (macOS only, Xcode 15+ or 16+).
+- **CocoaPods**: Required for iOS native dependency installation (`1.14+`).
+
+---
+
+## Installation
+
+Clone the repository and install project dependencies:
+
 ```bash
-# Clone the repository
-git clone https://github.com/<username>/linksphere-video-feed.git
+git clone https://github.com/Mukesh-Murugaiyan/linksphere-video-feed.git
 cd linksphere-video-feed
-
-# Install dependencies
 npm install
 ```
 
-### 3. Running the Application
+---
+
+## Android Development & Setup
+
+### Environment Requirements
+1. **JDK 17 Setup**:
+   Ensure `JAVA_HOME` points to OpenJDK 17 (e.g. in `~/.zshrc` or `~/.bash_profile`):
+   ```bash
+   export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
+   export PATH="$JAVA_HOME/bin:$PATH"
+   ```
+2. **Android SDK Setup**:
+   Ensure `ANDROID_HOME` points to your Android SDK installation:
+   ```bash
+   export ANDROID_HOME="$HOME/Library/Android/sdk"
+   export PATH="$PATH:$ANDROID_HOME/emulator"
+   export PATH="$PATH:$ANDROID_HOME/platform-tools"
+   ```
+3. **Android Device / Emulator Requirement**:
+   An Android Emulator (created via Android Studio Device Manager) **must already be running**, or a physical Android device must be connected via USB with **USB Debugging** enabled (`adb devices`).
+
+### Setup & Run Commands
+
+- **Open in Android Studio** (recommended for IDE development and launching emulators):
+  ```bash
+  npm run studio
+  ```
+
+- **Run Android Build & App**:
+  ```bash
+  npm run android
+  ```
+
+- **Run Web Preview (Quick Test)**:
+  ```bash
+  npm run web
+  ```
+
+---
+
+## iOS
+
+### Environment Requirement
+The iOS Simulator is provided through **Xcode** and is available exclusively on **macOS**. Xcode 15+ must be installed on your Mac before launching the iOS build.
+
+### Setup & Run Commands
 
 ```bash
-# Start Expo development server
-npm start
-
-# Run on iOS Simulator
+npm install
+cd ios
+pod install
+cd ..
 npm run ios
-
-# Run on Android Emulator
-npm run android
-
-# Run on Web Browser
-npm run web
 ```
 
----
+If generating native project files from scratch:
 
-## 🧪 TypeScript & Quality Verification
-
-Run strict TypeScript type checks to verify clean compilation:
 ```bash
-npx tsc --noEmit
+npx expo prebuild --platform ios
+cd ios
+pod install
+cd ..
+npm run ios
 ```
 
 ---
 
-## 📜 License
-MIT License - Created for LinkSphere Technologies Take-Home Assignment.
+## Running the App
+
+1. **Start Metro Bundler**:
+   ```bash
+   npm start
+   ```
+2. **Launch Target Platform**:
+   - Make sure your Android Emulator or iOS Simulator is running.
+   - Press **`i`** in the Metro terminal prompt to launch **iOS Simulator**.
+   - Press **`a`** in the Metro terminal prompt to launch **Android Emulator**.
+   - Alternatively, execute `npm run ios` or `npm run android` in a separate terminal.
+3. **What You Should See**:
+   - A full-screen, 60 FPS vertical snap video feed with pure white typography.
+   - Immediate autoplay for the currently focused video card.
+   - Smooth preloading of the adjacent video in the sliding window.
+   - Double-tap heart popping animation with optimistic like count increment.
+   - Floating glassmorphic AI Upscale / HD quality toggle.
+   - Instant zero-spinner replay when swiping backward to previously watched videos.
+
+---
+
+## Troubleshooting
+
+### Common Fixes & Utility Commands
+
+- **No Connected Device / Emulator Error**:
+  If `npm run android` outputs `No Android connected device found`, start an emulator from Android Studio or connect a physical device via USB:
+  ```bash
+  adb devices
+  ```
+
+- **`node_modules` Problems & Reinstall**:
+  ```bash
+  rm -rf node_modules package-lock.json
+  npm install
+  ```
+
+- **Metro Cache Clearing**:
+  ```bash
+  npx expo start --clear
+  ```
+
+- **CocoaPods Issues (iOS)**:
+  ```bash
+  cd ios
+  pod deintegrate
+  pod install
+  cd ..
+  ```
+
+- **Android Gradle Build Failure**:
+  ```bash
+  cd android
+  ./gradlew clean
+  cd ..
+  ```
+
+- **Android SDK Path Issues**:
+  Ensure environment variables are set in `~/.zshrc` or `~/.bash_profile`:
+  ```bash
+  export ANDROID_HOME=$HOME/Library/Android/sdk
+  export PATH=$PATH:$ANDROID_HOME/emulator
+  export PATH=$PATH:$ANDROID_HOME/platform-tools
+  ```
+
+- **Device / Emulator Connection Reset**:
+  ```bash
+  adb kill-server
+  adb start-server
+  ```
+
+---
+
+## Architecture
+
+```
+linksphere-video-feed/
+├── App.tsx                     # Entry point initializing 500MB LRU video cache on launch
+├── app.json                    # Expo project configuration with expo-video plugin
+├── package.json                # Project scripts, dependencies, & version metadata
+├── tsconfig.json               # Strict TypeScript compiler options
+├── ios/                        # Native iOS platform project (generated via prebuild)
+├── android/                    # Native Android platform project (generated via prebuild)
+└── src/
+    ├── types/
+    │   ├── video.ts            # VideoItem, AdItem, FeedItem, & PlaybackLifecycleState definitions
+    │   └── feed.ts             # Feed type re-exports
+    ├── constants/
+    │   ├── theme.ts            # Design tokens (#0A0A0E, #14141B, crisp text shadows)
+    │   └── mockData.ts         # Public MP4/HLS test streams & sponsored ad dataset generator
+    ├── services/
+    │   ├── videoCache.ts       # 500MB native LRU disk cache & position preservation
+    │   └── storage.ts          # ZeroLatencyStorage MMKV-compatible persistence engine
+    ├── utils/
+    │   └── formatters.ts       # K/M count and time formatting helpers
+    ├── hooks/
+    │   ├── useVideoFeed.ts     # Viewability tracking & active index lifecycle control
+    │   ├── useVideoPreload.ts  # Sliding window preloading hook [i-1, i, i+1]
+    │   ├── useVideoQuality.ts  # AI Upscale quality switcher & timestamp preservation
+    │   └── useLikesStore.ts    # Double-tap optimistic likes and bookmarks persistence
+    └── components/
+        ├── FeedList.tsx        # FlashList v2 virtualization screen with pagingEnabled
+        ├── VideoCard.tsx       # Main card binding gestures, video, overlay & focus reset
+        ├── VideoPlayer.tsx     # expo-video player with Reanimated opacity transition & auto-retry
+        ├── VideoOverlay.tsx    # Pure white typography text overlay with crisp legibility shadows
+        ├── DoubleTapHeart.tsx  # Floating heart animated via Reanimated v3 UI worklets
+        ├── UpscaleToggle.tsx   # Floating glassmorphic AI Upscale / HD toggle button
+        ├── ToastHUD.tsx        # Reanimated animated toast notification badge
+        └── AdCard.tsx          # Zero-CLS sponsored ad container matching window height
+```
+
+---
+
+## Performance Architecture
+
+- **FlashList Virtualization**: Utilizes `@shopify/flash-list` with `pagingEnabled`, `drawDistance={WINDOW_HEIGHT}`, and `overrideItemLayout` to ensure fixed viewport dimensions per cell without layout recalculation.
+- **Fixed Item Height**: Matches cell container height strictly to `WINDOW_HEIGHT`, preventing layout shifts (Zero CLS).
+- **Active Video Lifecycle**: State machine (`UNLOADED -> LOADING -> READY -> PLAYING -> PAUSED -> ERROR`) ensures only the focused video is active.
+- **Adjacent-Video Preload Strategy**: Maintains a tight `[activeIndex - 1, activeIndex, activeIndex + 1]` window around the active index. Preloads initial video headers and GOP frames for `activeIndex + 1` while `activeIndex` plays.
+- **Off-Screen Player Cleanup**: Non-adjacent cards unmount native `VideoView` instances, invoking native ExoPlayer / AVPlayer resource release while displaying lightweight `Image` poster placeholders.
+- **Cache-First Playback Strategy**: Configures `setVideoCacheSizeAsync(500MB)` at app startup. Streamed video segments are cached locally. Swiping back to a previously watched video bypasses network requests and loading indicators, playing instantly from disk.
+- **Reanimated UI-Thread Gestures**: Double-tap gestures and floating heart animations execute on the native UI thread via Reanimated v3 worklets (`scale`, `translateY`, `opacity`, `rotation`) and `react-native-worklets`.
+- **Avoiding Unnecessary React Renders**: Heavy cell components are wrapped in `React.memo` with strict equality comparison, isolating gesture state and overlay updates from feed re-renders.
+
+---
+
+## Video Sources
+
+- Configured in [`src/constants/mockData.ts`](file:///Users/sush/Projects/linksphere-video-feed/src/constants/mockData.ts).
+- Uses valid public MP4 and Mux HLS (`.m3u8`) test streams.
+- Zero secrets, private API keys, or backend credentials are exposed in the repository.
+
+---
+
+## AI Upscale
+
+- Simulated AI upscaling is triggered via the floating glassmorphic **`AI Upscale / HD`** toggle button.
+- Toggling switches between distinct SD (`sdUrl`) and HD (`hdUrl`) stream URLs.
+- The `useVideoQuality` hook captures `currentTime` before switching and seeks after loading the target stream, preserving continuous playback without restarting at `0:00`.
+- Displays an animated toast notification badge: `⚡ AI Upscaled 1080p | 60FPS`.
+
+---
+
+## Testing Checklist
+
+- [ ] Fresh clone works
+- [ ] npm install succeeds
+- [ ] Android build succeeds
+- [ ] iOS Pods install successfully
+- [ ] iOS build succeeds
+- [ ] Vertical paging works
+- [ ] Only focused video plays
+- [ ] Next video preloads
+- [ ] Off-screen players are released
+- [ ] Double-tap like works
+- [ ] Like state persists
+- [ ] AI Upscale switches quality without restarting at 0:00
+- [ ] Automatic retry works
+- [ ] Background/foreground resume works
+- [ ] Sponsored cards appear correctly
+- [ ] Cached video can replay
+
+---
+
+## License
+
+MIT License - Built for LinkSphere Technologies Take-Home Assignment evaluation.

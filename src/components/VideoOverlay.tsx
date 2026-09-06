@@ -26,7 +26,7 @@ interface Props {
   onToggleMute: () => void;
 }
 
-export const VideoOverlay: React.FC<Props> = ({
+const VideoOverlayComponent: React.FC<Props> = ({
   item,
   isLiked,
   likeCount,
@@ -46,7 +46,7 @@ export const VideoOverlay: React.FC<Props> = ({
           <View style={[styles.iconCircle, isLiked && styles.likedCircle]}>
             <Heart
               size={26}
-              color={isLiked ? COLORS.heartRed : COLORS.textPrimary}
+              color={isLiked ? COLORS.heartRed : '#FFFFFF'}
               fill={isLiked ? COLORS.heartRed : 'transparent'}
             />
           </View>
@@ -56,9 +56,9 @@ export const VideoOverlay: React.FC<Props> = ({
         {/* Comment Button */}
         <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
           <View style={styles.iconCircle}>
-            <MessageCircle size={26} color={COLORS.textPrimary} />
+            <MessageCircle size={26} color="#FFFFFF" />
           </View>
-          <Text style={styles.actionText}>{formatCount(item.commentsCount)}</Text>
+          <Text style={styles.actionText}>{formatCount(item.commentsCount ?? item.initialComments ?? 0)}</Text>
         </TouchableOpacity>
 
         {/* Bookmark Button */}
@@ -66,7 +66,7 @@ export const VideoOverlay: React.FC<Props> = ({
           <View style={[styles.iconCircle, isBookmarked && styles.bookmarkedCircle]}>
             <Bookmark
               size={26}
-              color={isBookmarked ? COLORS.accentCyan : COLORS.textPrimary}
+              color={isBookmarked ? COLORS.accentCyan : '#FFFFFF'}
               fill={isBookmarked ? COLORS.accentCyan : 'transparent'}
             />
           </View>
@@ -76,9 +76,9 @@ export const VideoOverlay: React.FC<Props> = ({
         {/* Share Button */}
         <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
           <View style={styles.iconCircle}>
-            <Share2 size={26} color={COLORS.textPrimary} />
+            <Share2 size={26} color="#FFFFFF" />
           </View>
-          <Text style={styles.actionText}>{formatCount(item.sharesCount)}</Text>
+          <Text style={styles.actionText}>{formatCount(item.sharesCount ?? item.initialShares ?? 0)}</Text>
         </TouchableOpacity>
 
         {/* Mute Toggle */}
@@ -118,12 +118,23 @@ export const VideoOverlay: React.FC<Props> = ({
         <View style={styles.audioRow}>
           <Music size={14} color={COLORS.accentPurple} />
           <Text style={styles.audioText} numberOfLines={1}>
-            {item.audioTrack.title} • {item.audioTrack.artist}
+            {typeof item.audioTrack === 'string'
+              ? item.audioTrack
+              : `${item.audioTrack.title} • ${item.audioTrack.artist}`}
           </Text>
         </View>
       </View>
     </View>
   );
+};
+
+export const VideoOverlay = React.memo(VideoOverlayComponent);
+
+// Subtle, crisp legibility shadow to enhance contrast without blurriness
+const SUBTLE_TEXT_SHADOW = {
+  textShadowColor: 'rgba(0, 0, 0, 0.65)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 1.5,
 };
 
 const styles = StyleSheet.create({
@@ -147,34 +158,26 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(20, 20, 27, 0.65)',
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.6,
     shadowRadius: 4,
   },
   likedCircle: {
-    backgroundColor: 'rgba(239, 68, 68, 0.18)',
     borderColor: COLORS.heartRed,
   },
   bookmarkedCircle: {
-    backgroundColor: 'rgba(6, 182, 212, 0.18)',
     borderColor: COLORS.accentCyan,
+    backgroundColor: 'rgba(6, 182, 212, 0.15)',
   },
   actionText: {
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
+    ...SUBTLE_TEXT_SHADOW,
   },
   bottomDetails: {
     position: 'absolute',
@@ -192,13 +195,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    borderWidth: 1.5,
-    borderColor: COLORS.accentPurple,
   },
   handleText: {
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+    ...SUBTLE_TEXT_SHADOW,
   },
   followButton: {
     backgroundColor: COLORS.accentPurple,
@@ -208,37 +210,37 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   followText: {
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
   titleText: {
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
     marginTop: 2,
+    ...SUBTLE_TEXT_SHADOW,
   },
   captionText: {
-    color: COLORS.textSecondary,
+    color: '#FFFFFF',
     fontSize: 13,
     lineHeight: 18,
+    ...SUBTLE_TEXT_SHADOW,
   },
   audioRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(20, 20, 27, 0.65)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     alignSelf: 'flex-start',
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    borderWidth: 1,
     marginTop: 2,
   },
   audioText: {
-    color: COLORS.textPrimary,
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
+    ...SUBTLE_TEXT_SHADOW,
   },
 });
